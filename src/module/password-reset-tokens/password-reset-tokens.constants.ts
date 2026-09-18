@@ -1,0 +1,2 @@
+export const PASSWORD_RESET_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
+export const PASSWORD_RESET_TOKEN_MAX_ISSUE_ATTEMPTS = 5;

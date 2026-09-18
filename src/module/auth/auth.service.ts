@@ -10,6 +10,8 @@ import { AUTH_MESSAGES, BCRYPT_SALT_ROUNDS } from './auth.constants';
 import { LoginDto } from './dto/login.dto';
 import { JwtService } from '@nestjs/jwt';
 import { RefreshTokensService } from '../refresh-tokens/refresh-tokens.service';
+import { PasswordResetTokensService } from '../password-reset-tokens/password-reset-tokens.service';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -17,11 +19,36 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly refreshTokensService: RefreshTokensService,
+    private readonly passwordResetTokensService: PasswordResetTokensService,
   ) {}
 
+  async resetPassword(dto: ResetPasswordDto) {
+    const verified = await this.passwordResetTokensService.verify(dto.token);
+    if (!verified) {
+      throw new UnauthorizedException(AUTH_MESSAGES.INVALID_RESET_TOKEN);
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, BCRYPT_SALT_ROUNDS);
+    await this.usersService.updatePassword(verified.userId, passwordHash);
+    await this.refreshTokensService.revokeAllForUser(verified.userId);
+
+    return { message: AUTH_MESSAGES.RESET_SUCCESSFUL };
+  }
+
+  async forgotPassword(email: string) {
+    const user = await this.usersService.findByEmail(email);
+
+    if (user) {
+      const { rawToken } = await this.passwordResetTokensService.issue(user.id);
+      console.log(`[mail] Password reset token for ${email}: ${rawToken}`);
+    }
+
+    return { message: AUTH_MESSAGES.FORGOT_PASSWORD_GENERIC };
+  }
+
   async logoutAll(userId: string) {
-  await this.refreshTokensService.revokeAllForUser(userId);
-}
+    await this.refreshTokensService.revokeAllForUser(userId);
+  }
 
   async logout(rawToken: string) {
     await this.refreshTokensService.revokeByRawToken(rawToken);

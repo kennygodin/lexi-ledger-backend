@@ -7,12 +7,14 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { RefreshTokensModule } from '../refresh-tokens/refresh-tokens.module';
 import { JwtStrategy } from './strategy/jwt.strategy';
 import { PassportModule } from '@nestjs/passport';
+import { PasswordResetTokensModule } from '../password-reset-tokens/password-reset-tokens.module';
 
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
     UsersModule,
     RefreshTokensModule,
+    PasswordResetTokensModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

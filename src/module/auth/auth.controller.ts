@@ -26,6 +26,8 @@ import {
   CurrentUser,
   type CurrentUserPayload,
 } from '../../common/decorators/current-user.decorator';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -45,6 +47,23 @@ export class AuthController {
       sameSite: 'strict',
       expires: expiresAt,
     });
+  }
+  @Post('reset-password')
+  @ApiOperation({ summary: 'Reset password using the emailed code' })
+  @ApiResponse({ status: 201, description: 'Password reset successful' })
+  @ApiResponse({ status: 401, description: 'Invalid or expired code' })
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
+  }
+
+  @Post('forgot-password')
+  @ApiOperation({ summary: 'Request a password reset code' })
+  @ApiResponse({
+    status: 201,
+    description: 'If the email exists, a reset code was sent',
+  })
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto.email);
   }
 
   @Post('logout-all')

@@ -57,7 +57,7 @@ model RefreshToken {
 model PasswordResetToken {
   id        String    @id @default(uuid())
   userId    String
-  tokenHash String
+  tokenHash String    @unique
   usedAt    DateTime?
   expiresAt DateTime
   createdAt DateTime  @default(now())

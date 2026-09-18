@@ -12,6 +12,7 @@ import { RefreshTokensModule } from './module/refresh-tokens/refresh-tokens.modu
 import appConfig from './config/app.config';
 import jwtConfig from './config/jwt.config';
 import { envValidationSchema } from './config/env.validation';
+import { PasswordResetTokensModule } from './module/password-reset-tokens/password-reset-tokens.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { envValidationSchema } from './config/env.validation';
     UsersModule,
     AuthModule,
     RefreshTokensModule,
+    PasswordResetTokensModule,
   ],
   controllers: [AppController],
   providers: [
