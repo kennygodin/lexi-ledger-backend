@@ -43,7 +43,7 @@ model EmailVerificationToken {
 model RefreshToken {
   id        String    @id @default(uuid())
   userId    String
-  tokenHash String
+  tokenHash String    @unique
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime  @default(now())
