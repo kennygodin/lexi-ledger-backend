@@ -6,6 +6,10 @@ import {
   REFRESH_TOKEN_TTL_MS,
 } from './refresh-tokens.constants';
 
+type RefreshResult =
+  | { status: 'invalid' | 'reused' | 'expired' }
+  | { status: 'valid'; userId: string; rawToken: string; expiresAt: Date };
+
 function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
@@ -16,13 +20,46 @@ export class RefreshTokensService {
     private readonly refreshTokensRepository: RefreshTokensRepository,
   ) {}
 
-  async validateAndRotate(rawToken: string) {
+  async revokeAllForUser(userId: string) {
+    await this.refreshTokensRepository.revokeAllForUser(userId);
+  }
+
+  async revokeByRawToken(rawToken: string) {
+    const existingToken =
+      await this.refreshTokensRepository.findByTokenHash(rawToken);
+    if (existingToken) {
+      await this.refreshTokensRepository.revoke(existingToken.id);
+    }
+  }
+
+  async validateAndRotate(rawToken: string): Promise<RefreshResult> {
     const tokenHash = hashToken(rawToken);
     const existingToken =
       await this.refreshTokensRepository.findByTokenHash(tokenHash);
-    return existingToken;
 
-    // TODO: full rotation/reuse-detection logic
+    if (!existingToken) {
+      return { status: 'invalid' };
+    }
+
+    if (existingToken.revokedAt) {
+      await this.refreshTokensRepository.revokeAllForUser(existingToken.userId);
+      return { status: 'reused' };
+    }
+
+    if (existingToken.expiresAt < new Date()) {
+      return { status: 'expired' };
+    }
+
+    await this.refreshTokensRepository.revoke(existingToken.id);
+    const { rawToken: newRawToken, expiresAt } = await this.issue(
+      existingToken.userId,
+    );
+    return {
+      status: 'valid',
+      userId: existingToken.userId,
+      rawToken: newRawToken,
+      expiresAt,
+    };
   }
 
   async issue(userId: string) {

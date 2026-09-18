@@ -19,6 +19,38 @@ export class AuthService {
     private readonly refreshTokensService: RefreshTokensService,
   ) {}
 
+  async logoutAll(userId: string) {
+  await this.refreshTokensService.revokeAllForUser(userId);
+}
+
+  async logout(rawToken: string) {
+    await this.refreshTokensService.revokeByRawToken(rawToken);
+  }
+
+  async refresh(rawToken: string) {
+    const result = await this.refreshTokensService.validateAndRotate(rawToken);
+
+    if (result.status !== 'valid') {
+      throw new UnauthorizedException(AUTH_MESSAGES.INVALID_REFRESH_TOKEN);
+    }
+
+    const user = await this.usersService.findById(result.userId);
+    if (!user) {
+      throw new UnauthorizedException(AUTH_MESSAGES.INVALID_REFRESH_TOKEN);
+    }
+
+    const accessToken = await this.jwtService.signAsync({
+      sub: user.id,
+      role: user.role,
+    });
+
+    return {
+      accessToken,
+      refreshToken: result.rawToken,
+      refreshTokenExpiresAt: result.expiresAt,
+    };
+  }
+
   async login(dto: LoginDto) {
     const user = await this.usersService.findByEmail(dto.email);
     if (!user) {

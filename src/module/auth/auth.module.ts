@@ -5,9 +5,12 @@ import { AuthController } from './auth.controller';
 import { JwtModule, JwtSignOptions } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { RefreshTokensModule } from '../refresh-tokens/refresh-tokens.module';
+import { JwtStrategy } from './strategy/jwt.strategy';
+import { PassportModule } from '@nestjs/passport';
 
 @Module({
   imports: [
+    PassportModule.register({ defaultStrategy: 'jwt' }),
     UsersModule,
     RefreshTokensModule,
     JwtModule.registerAsync({
@@ -23,7 +26,7 @@ import { RefreshTokensModule } from '../refresh-tokens/refresh-tokens.module';
       }),
     }),
   ],
-  providers: [AuthService],
+  providers: [AuthService, JwtStrategy],
   controllers: [AuthController],
   exports: [],
 })
