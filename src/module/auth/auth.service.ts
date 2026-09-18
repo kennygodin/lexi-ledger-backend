@@ -6,12 +6,18 @@ import {
 } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
-import { AUTH_MESSAGES, BCRYPT_SALT_ROUNDS } from './auth.constants';
+import {
+  AUTH_MESSAGES,
+  BCRYPT_SALT_ROUNDS,
+  LOGIN_STATUS,
+} from './auth.constants';
 import { LoginDto } from './dto/login.dto';
 import { JwtService } from '@nestjs/jwt';
 import { RefreshTokensService } from '../refresh-tokens/refresh-tokens.service';
 import { PasswordResetTokensService } from '../password-reset-tokens/password-reset-tokens.service';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { MailService } from '../mail/mail.service';
+import { EmailVerificationTokensService } from '../email-verification-token/email-verification-tokens.service';
 
 @Injectable()
 export class AuthService {
@@ -20,6 +26,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly refreshTokensService: RefreshTokensService,
     private readonly passwordResetTokensService: PasswordResetTokensService,
+    private readonly mailService: MailService,
+    private readonly emailVerificationTokensService: EmailVerificationTokensService,
   ) {}
 
   async resetPassword(dto: ResetPasswordDto) {
@@ -40,7 +48,7 @@ export class AuthService {
 
     if (user) {
       const { rawToken } = await this.passwordResetTokensService.issue(user.id);
-      console.log(`[mail] Password reset token for ${email}: ${rawToken}`);
+      await this.mailService.sendPasswordResetEmail(user.email, rawToken);
     }
 
     return { message: AUTH_MESSAGES.FORGOT_PASSWORD_GENERIC };
@@ -78,6 +86,30 @@ export class AuthService {
     };
   }
 
+  async resendVerificationEmail(email: string) {
+    const user = await this.usersService.findByEmail(email);
+
+    if (user && !user.emailVerifiedAt) {
+      const { rawToken } = await this.emailVerificationTokensService.issue(
+        user.id,
+      );
+      await this.mailService.sendVerificationEmail(user.email, rawToken);
+    }
+
+    // identical response regardless of whether the email exists or is already verified
+    return { message: AUTH_MESSAGES.VERIFICATION_EMAIL_SENT_GENERIC };
+  }
+
+  async verifyEmail(rawToken: string) {
+    const verified = await this.emailVerificationTokensService.verify(rawToken);
+    if (!verified) {
+      throw new UnauthorizedException(AUTH_MESSAGES.INVALID_VERIFICATION_TOKEN);
+    }
+
+    await this.usersService.markEmailAsVerified(verified.userId);
+    return { message: AUTH_MESSAGES.EMAIL_VERIFIED };
+  }
+
   async login(dto: LoginDto) {
     const user = await this.usersService.findByEmail(dto.email);
     if (!user) {
@@ -89,16 +121,24 @@ export class AuthService {
       throw new UnauthorizedException(AUTH_MESSAGES.INVALID_CREDENTIALS);
     }
 
+    if (!user.emailVerifiedAt) {
+      const { rawToken } = await this.emailVerificationTokensService.issue(
+        user.id,
+      );
+      await this.mailService.sendVerificationEmail(user.email, rawToken);
+      return { status: LOGIN_STATUS.EMAIL_NOT_VERIFIED };
+    }
+
     const accessToken = await this.jwtService.signAsync({
       sub: user.id,
       role: user.role,
     });
     const { rawToken: refreshToken, expiresAt } =
       await this.refreshTokensService.issue(user.id);
-
     const { passwordHash: _passwordHash, ...safeUser } = user;
 
     return {
+      status: LOGIN_STATUS.SUCCESS,
       user: safeUser,
       accessToken,
       refreshToken,
@@ -120,6 +160,11 @@ export class AuthService {
       email: dto.email,
       passwordHash,
     });
+
+    const { rawToken } = await this.emailVerificationTokensService.issue(
+      user.id,
+    );
+    await this.mailService.sendVerificationEmail(user.email, rawToken);
 
     const { passwordHash: _passwordHash, ...safeUser } = user;
 

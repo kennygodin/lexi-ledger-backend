@@ -13,6 +13,8 @@ import appConfig from './config/app.config';
 import jwtConfig from './config/jwt.config';
 import { envValidationSchema } from './config/env.validation';
 import { PasswordResetTokensModule } from './module/password-reset-tokens/password-reset-tokens.module';
+import { MailModule } from './module/mail/mail.module';
+import { EmailVerificationTokensModule } from './module/email-verification-token/email-verification-tokens.module';
 
 @Module({
   imports: [
@@ -28,6 +30,8 @@ import { PasswordResetTokensModule } from './module/password-reset-tokens/passwo
     AuthModule,
     RefreshTokensModule,
     PasswordResetTokensModule,
+    EmailVerificationTokensModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [

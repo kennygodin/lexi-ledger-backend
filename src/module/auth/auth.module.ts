@@ -8,6 +8,8 @@ import { RefreshTokensModule } from '../refresh-tokens/refresh-tokens.module';
 import { JwtStrategy } from './strategy/jwt.strategy';
 import { PassportModule } from '@nestjs/passport';
 import { PasswordResetTokensModule } from '../password-reset-tokens/password-reset-tokens.module';
+import { EmailVerificationTokensModule } from '../email-verification-token/email-verification-tokens.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
@@ -15,6 +17,8 @@ import { PasswordResetTokensModule } from '../password-reset-tokens/password-res
     UsersModule,
     RefreshTokensModule,
     PasswordResetTokensModule,
+    EmailVerificationTokensModule,
+    MailModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

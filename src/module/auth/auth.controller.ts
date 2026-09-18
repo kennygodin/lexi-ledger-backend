@@ -13,7 +13,12 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import type { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
-import { AUTH_MESSAGES, ClientType, isClientType } from './auth.constants';
+import {
+  AUTH_MESSAGES,
+  ClientType,
+  isClientType,
+  LOGIN_STATUS,
+} from './auth.constants';
 import {
   ApiBearerAuth,
   ApiHeader,
@@ -28,6 +33,8 @@ import {
 } from '../../common/decorators/current-user.decorator';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ResendVerificationDto } from './dto/resend-verification.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -48,6 +55,19 @@ export class AuthController {
       expires: expiresAt,
     });
   }
+
+  @Post('resend-verification')
+  @ApiOperation({ summary: 'Resend the verification email' })
+  resendVerification(@Body() dto: ResendVerificationDto) {
+    return this.authService.resendVerificationEmail(dto.email);
+  }
+
+  @Post('verify-email')
+  @ApiOperation({ summary: 'Verify email using the emailed token' })
+  verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.authService.verifyEmail(dto.token);
+  }
+
   @Post('reset-password')
   @ApiOperation({ summary: 'Reset password using the emailed code' })
   @ApiResponse({ status: 201, description: 'Password reset successful' })
@@ -177,7 +197,6 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const clientType = req.headers['x-client-type'];
-
     if (!isClientType(clientType)) {
       throw new BadRequestException(AUTH_MESSAGES.INVALID_CLIENT_TYPE);
     }
@@ -187,8 +206,13 @@ export class AuthController {
       password: dto.password,
     });
 
+    if (result.status === LOGIN_STATUS.EMAIL_NOT_VERIFIED) {
+      return { status: result.status };
+    }
+
     if (clientType === ClientType.MOBILE) {
       return {
+        status: result.status,
         user: result.user,
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
@@ -201,8 +225,11 @@ export class AuthController {
       result.refreshToken,
       result.refreshTokenExpiresAt,
     );
-
-    return { user: result.user, accessToken: result.accessToken };
+    return {
+      status: result.status,
+      user: result.user,
+      accessToken: result.accessToken,
+    };
   }
 
   @Post('register')
