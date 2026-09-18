@@ -6,6 +6,14 @@ import { User } from '../../generated/prisma/client';
 export class UsersService {
   constructor(private readonly usersRepository: UsersRepository) {}
 
+  markEmailAsVerified(id: string): Promise<User> {
+    return this.usersRepository.markEmailVerified(id);
+  }
+
+  updatePassword(id: string, passwordHash: string): Promise<User> {
+    return this.usersRepository.updatePassword(id, passwordHash);
+  }
+
   create(data: CreateUserInput): Promise<User> {
     return this.usersRepository.createUser(data);
   }
