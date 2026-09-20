@@ -18,6 +18,9 @@ import {
   CurrentUser,
   type CurrentUserPayload,
 } from '../../common/decorators/current-user.decorator';
+import { randomUUID } from 'crypto';
+import { extname } from 'path';
+import { diskStorage } from 'multer';
 
 @Controller('statements')
 @UseGuards(JwtAuthGuard)
@@ -26,8 +29,8 @@ export class StatementsController {
   constructor(private readonly statementsService: StatementsService) {}
 
   @Get(':id')
-  getById(@Param('id') id: string) {
-    return this.statementsService.getById(id);
+  getById(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.statementsService.getById(id, user.userId);
   }
 
   @Post('upload')
@@ -43,7 +46,16 @@ export class StatementsController {
       },
     },
   })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (_req, file, callback) => {
+          callback(null, `${randomUUID()}${extname(file.originalname)}`);
+        },
+      }),
+    }),
+  )
   upload(
     @UploadedFile(
       new ParseFilePipe({

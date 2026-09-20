@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { StatementsRepository } from './statements.repository';
 import { InjectQueue } from '@nestjs/bullmq';
 import * as crypto from 'crypto';
+import * as fs from 'fs';
 import {
   PROCESS_STATEMENT_QUEUE,
   STATEMENTS_MESSAGES,
@@ -15,8 +16,8 @@ export class StatementsService {
     @InjectQueue(PROCESS_STATEMENT_QUEUE) private readonly queue: Queue,
   ) {}
 
-  getById(id: string) {
-    return this.statementsRepository.findById(id);
+  getById(id: string, userId: string) {
+    return this.statementsRepository.findByIdForUser(id, userId);
   }
 
   async upload(userId: string, file: Express.Multer.File) {
@@ -24,9 +25,10 @@ export class StatementsService {
       throw new BadRequestException(STATEMENTS_MESSAGES.ONLY_PDF);
     }
 
+    const fileBuffer = await fs.promises.readFile(file.path);
     const contentHash = crypto
       .createHash('sha256')
-      .update(file.buffer)
+      .update(fileBuffer)
       .digest('hex');
 
     const existing = await this.statementsRepository.findByUserAndHash(
@@ -41,6 +43,7 @@ export class StatementsService {
       contentHash,
       filename: file.originalname,
       userId,
+      storagePath: file.path,
     });
 
     await this.queue.add(PROCESS_STATEMENT_QUEUE, {
