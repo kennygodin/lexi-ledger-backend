@@ -12,18 +12,43 @@ enum Role {
   admin
 }
 
-model User {
-  id     String @id @default(uuid())
-  name   String
-  email  String @unique
-  passwordHash String
-  role   Role   @default(user)
-  emailVerifiedAt DateTime?
+enum StatementStatus {
+  pending
+  processing
+  parsed
+  failed
+}
 
+enum TransactionType {
+  debit
+  credit
+}
+
+enum TransactionCategory {
+  food
+  transport
+  rent
+  utilities
+  subscriptions
+  shopping
+  entertainment
+  income
+  other
+}
+
+model User {
+  id              String    @id @default(uuid())
+  name            String
+  email           String    @unique
+  passwordHash    String
+  role            Role      @default(user)
+  emailVerifiedAt DateTime?
 
   refreshTokens           RefreshToken[]
   passwordResetTokens     PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
+  uploadStatements        UploadStatement[]
+  transactions            Transaction[]
 
   @@map("users")
 }
@@ -68,4 +93,40 @@ model PasswordResetToken {
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+model UploadStatement {
+  id            String          @id @default(uuid())
+  userId        String
+  filename      String
+  contentHash   String
+  status        StatementStatus @default(pending)
+  failureReason String?
+  uploadedAt    DateTime        @default(now())
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions  Transaction[]
+
+  @@unique([userId, contentHash])
+  @@index([userId])
+  @@map("upload_statements")
+}
+
+model Transaction {
+  id          String              @id @default(uuid())
+  userId      String
+  statementId String
+  date        DateTime
+  description String
+  amount      Int
+  type        TransactionType
+  category    TransactionCategory
+  confidence  Float
+  createdAt   DateTime            @default(now())
+
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  uploadStatement UploadStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([statementId])
+  @@map("transactions")
 }
