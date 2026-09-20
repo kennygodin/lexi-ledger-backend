@@ -13,6 +13,10 @@ export interface CreateUploadStatementInput {
 export class StatementsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  findById(id: string) {
+    return this.prisma.uploadStatement.findUnique({ where: { id } });
+  }
+
   updateStatus(id: string, status: StatementStatus, failureReason?: string) {
     return this.prisma.uploadStatement.update({
       where: { id },
@@ -25,14 +29,7 @@ export class StatementsRepository {
   }
 
   create(data: CreateUploadStatementInput) {
-    return this.prisma.uploadStatement.create({
-      data: {
-        userId: data.userId,
-        filename: data.filename,
-        contentHash: data.contentHash,
-        storagePath: data.storagePath,
-      },
-    });
+    return this.prisma.uploadStatement.create({ data });
   }
 
   findByUserAndHash(userId: string, contentHash: string) {

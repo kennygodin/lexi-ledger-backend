@@ -13,18 +13,21 @@ import { RefreshTokensModule } from './module/refresh-tokens/refresh-tokens.modu
 import appConfig from './config/app.config';
 import jwtConfig from './config/jwt.config';
 import redisConfig from './config/redis.config';
+import geminiConfig from './config/gemini.config';
 import { envValidationSchema } from './config/env.validation';
 import { PasswordResetTokensModule } from './module/password-reset-tokens/password-reset-tokens.module';
 import { MailModule } from './module/mail/mail.module';
 import { EmailVerificationTokensModule } from './module/email-verification-token/email-verification-tokens.module';
 import { StatementsModule } from './module/statements/statements.module';
+import { GeminiModule } from './module/gemini/gemini.module';
+import { TransactionsModule } from './module/transactions/transactions.module';
 
 @Module({
   imports: [
     // read env vars via an injectable
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, jwtConfig, redisConfig],
+      load: [appConfig, jwtConfig, redisConfig, geminiConfig],
       validationSchema: envValidationSchema,
     }),
     BullModule.forRootAsync({
@@ -46,6 +49,8 @@ import { StatementsModule } from './module/statements/statements.module';
     EmailVerificationTokensModule,
     MailModule,
     StatementsModule,
+    GeminiModule,
+    TransactionsModule,
   ],
   controllers: [AppController],
   providers: [
