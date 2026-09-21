@@ -5,11 +5,17 @@ import {
   Param,
   ParseFilePipe,
   Post,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiConsumes } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { StatementsService } from './statements.service';
@@ -21,12 +27,22 @@ import {
 import { randomUUID } from 'crypto';
 import { extname } from 'path';
 import { diskStorage } from 'multer';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 
 @Controller('statements')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class StatementsController {
   constructor(private readonly statementsService: StatementsService) {}
+
+  @Get('')
+  @ApiOperation({ summary: 'Fetch all uploaded statements' })
+  async listStatements(
+    @CurrentUser() user: CurrentUserPayload,
+    @Query() query: PaginationDto,
+  ) {
+    return this.statementsService.findAll(user.userId, query);
+  }
 
   @Get(':id')
   getById(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {

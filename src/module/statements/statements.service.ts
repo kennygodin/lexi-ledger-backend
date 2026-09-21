@@ -17,6 +17,29 @@ export class StatementsService {
     @InjectQueue(PROCESS_STATEMENT_QUEUE) private readonly queue: Queue,
   ) {}
 
+  async findAll(
+    userId: string,
+    { page, limit }: { page: number; limit: number },
+  ) {
+    const skip = (page - 1) * limit;
+
+    const { statements, total } =
+      await this.statementsRepository.findAllForUser(userId, {
+        skip,
+        take: limit,
+      });
+
+    return {
+      data: statements,
+      meta: {
+        page,
+        total,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
   updateStatus(id: string, status: StatementStatus, failureReason?: string) {
     return this.statementsRepository.updateStatus(id, status, failureReason);
   }

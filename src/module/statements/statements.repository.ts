@@ -13,6 +13,25 @@ export interface CreateUploadStatementInput {
 export class StatementsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  async findAllForUser(
+    userId: string,
+    { skip, take }: { skip: number; take: number },
+  ) {
+    const [statements, total] = await this.prisma.$transaction([
+      this.prisma.uploadStatement.findMany({
+        where: { userId },
+        orderBy: { uploadedAt: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.uploadStatement.count({
+        where: { userId },
+      }),
+    ]);
+
+    return { statements, total };
+  }
+
   findById(id: string) {
     return this.prisma.uploadStatement.findUnique({ where: { id } });
   }
