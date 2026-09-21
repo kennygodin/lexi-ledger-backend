@@ -49,6 +49,7 @@ model User {
   emailVerificationTokens EmailVerificationToken[]
   uploadStatements        UploadStatement[]
   transactions            Transaction[]
+  corrections             TransactionCorrection[]
 
   @@map("users")
 }
@@ -112,9 +113,8 @@ model UploadStatement {
   @@map("upload_statements")
 }
 
-
 model Transaction {
-  id          String              @id @default(uuid())
+  id          String                  @id @default(uuid())
   userId      String
   statementId String
   date        DateTime
@@ -123,7 +123,8 @@ model Transaction {
   type        TransactionType
   category    TransactionCategory
   confidence  Float
-  createdAt   DateTime            @default(now())
+  createdAt   DateTime                @default(now())
+  corrections TransactionCorrection[]
 
   user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   uploadStatement UploadStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
@@ -131,4 +132,18 @@ model Transaction {
   @@index([userId])
   @@index([statementId])
   @@map("transactions")
+}
+
+model TransactionCorrection {
+  id               String              @id @default(uuid())
+  transactionId    String
+  userId           String
+  previousCategory TransactionCategory
+  newCategory      TransactionCategory
+  correctedAt      DateTime            @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([transactionId])
 }
