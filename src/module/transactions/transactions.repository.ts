@@ -20,6 +20,39 @@ export interface CreateTransactionInput {
 export class TransactionsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  async correct(
+    userId: string,
+    {
+      id,
+      previousCategory,
+      newCategory,
+    }: {
+      id: string;
+      previousCategory: TransactionCategory;
+      newCategory: TransactionCategory;
+    },
+  ) {
+    const [transaction] = await this.prisma.$transaction([
+      this.prisma.transaction.update({
+        where: { id, userId },
+        data: { category: newCategory },
+      }),
+      this.prisma.transactionCorrection.create({
+        data: {
+          transactionId: id,
+          userId,
+          previousCategory,
+          newCategory,
+        },
+      }),
+    ]);
+    return transaction;
+  }
+
+  findByIdForUser(id: string, userId: string) {
+    return this.prisma.transaction.findFirst({ where: { id, userId } });
+  }
+
   async findAllForUser(
     userId: string,
     { skip, take }: { skip: number; take: number },
