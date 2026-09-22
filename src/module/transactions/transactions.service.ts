@@ -12,6 +12,14 @@ export class TransactionsService {
     private readonly transactionsRepository: TransactionsRepository,
   ) {}
 
+  async getCorrections(id: string, userId: string) {
+    const transaction = await this.getById(id, userId);
+    if (!transaction) {
+      throw new NotFoundException(TRANSACTIONS_MESSAGES.TRANSACTION_NOT_FOUND);
+    }
+    return this.transactionsRepository.getCorrections(userId, id);
+  }
+
   async getOverview(userId: string, range: { from?: string; to?: string }) {
     const [byType, byCategory] = await this.transactionsRepository.getOverview(
       userId,

@@ -30,6 +30,13 @@ export class TransactionsRepository {
     };
   }
 
+  getCorrections(userId: string, transactionId: string) {
+    return this.prisma.transactionCorrection.findMany({
+      where: { userId, transactionId },
+      orderBy: { correctedAt: 'desc' },
+    });
+  }
+
   getOverview(userId: string, { from, to }: { from?: string; to?: string }) {
     const where = {
       userId,

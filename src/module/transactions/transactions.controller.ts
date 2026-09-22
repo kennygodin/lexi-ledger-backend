@@ -24,6 +24,15 @@ import { FindTransactionsDto } from './dto/find-transactions.dto';
 export class TransactionsController {
   constructor(private readonly transactionsService: TransactionsService) {}
 
+  @Get(':id/corrections')
+  @ApiOperation({ summary: 'Fetch correction history for a transaction' })
+  async getCorrections(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id') id: string,
+  ) {
+    return this.transactionsService.getCorrections(id, user.userId);
+  }
+
   @Patch(':id/category')
   @ApiOperation({ summary: 'User to manually overide transaction category' })
   async correctTransaction(
