@@ -85,24 +85,28 @@ export class TransactionsService {
       page,
       limit,
       statementId,
-    }: { page: number; limit: number; statementId?: string },
+      from,
+      to,
+    }: {
+      page: number;
+      limit: number;
+      statementId?: string;
+      from?: string;
+      to?: string;
+    },
   ) {
     const skip = (page - 1) * limit;
-
     const { transactions, total } =
       await this.transactionsRepository.findAllForUser(userId, {
         skip,
         take: limit,
         statementId,
+        from,
+        to,
       });
     return {
       data: transactions,
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
   }
 

@@ -20,17 +20,20 @@ export interface CreateTransactionInput {
 export class TransactionsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  private dateRangeWhere(from?: string, to?: string) {
+    if (!from && !to) return {};
+    return {
+      date: {
+        ...(from ? { gte: new Date(from) } : {}),
+        ...(to ? { lte: new Date(to) } : {}),
+      },
+    };
+  }
+
   getOverview(userId: string, { from, to }: { from?: string; to?: string }) {
     const where = {
       userId,
-      ...(from || to
-        ? {
-            date: {
-              ...(from ? { gte: new Date(from) } : {}),
-              ...(to ? { lte: new Date(to) } : {}),
-            },
-          }
-        : {}),
+      ...this.dateRangeWhere(from, to),
     };
 
     return this.prisma.$transaction([
@@ -97,9 +100,21 @@ export class TransactionsRepository {
       skip,
       take,
       statementId,
-    }: { skip: number; take: number; statementId?: string },
+      from,
+      to,
+    }: {
+      skip: number;
+      take: number;
+      statementId?: string;
+      from?: string;
+      to?: string;
+    },
   ) {
-    const where = { userId, ...(statementId ? { statementId } : {}) };
+    const where = {
+      userId,
+      ...(statementId ? { statementId } : {}),
+      ...this.dateRangeWhere(from, to),
+    };
     const [transactions, total] = await this.prisma.$transaction([
       this.prisma.transaction.findMany({
         where,
