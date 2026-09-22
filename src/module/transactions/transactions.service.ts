@@ -12,6 +12,30 @@ export class TransactionsService {
     private readonly transactionsRepository: TransactionsRepository,
   ) {}
 
+  async getOverview(userId: string, range: { from?: string; to?: string }) {
+    const [byType, byCategory] = await this.transactionsRepository.getOverview(
+      userId,
+      range,
+    );
+
+    const credit = byType.find((g) => g.type === 'credit');
+    const debit = byType.find((g) => g.type === 'debit');
+    const totalCredit = credit?._sum.amount ?? 0;
+    const totalDebit = debit?._sum.amount ?? 0;
+
+    return {
+      totalTransactions: (credit?._count ?? 0) + (debit?._count ?? 0),
+      totalCredit,
+      totalDebit,
+      net: totalCredit - totalDebit,
+      categoryBreakdown: byCategory.map((g) => ({
+        category: g.category,
+        total: g._sum.amount ?? 0,
+        count: g._count,
+      })),
+    };
+  }
+
   async getStats(userId: string, statementId: string) {
     const grouped = await this.transactionsRepository.getStatsForStatement(
       userId,

@@ -20,6 +20,35 @@ export interface CreateTransactionInput {
 export class TransactionsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  getOverview(userId: string, { from, to }: { from?: string; to?: string }) {
+    const where = {
+      userId,
+      ...(from || to
+        ? {
+            date: {
+              ...(from ? { gte: new Date(from) } : {}),
+              ...(to ? { lte: new Date(to) } : {}),
+            },
+          }
+        : {}),
+    };
+
+    return this.prisma.$transaction([
+      this.prisma.transaction.groupBy({
+        by: ['type'],
+        where,
+        _sum: { amount: true },
+        _count: true,
+      }),
+      this.prisma.transaction.groupBy({
+        by: ['category'],
+        where,
+        _sum: { amount: true },
+        _count: true,
+      }),
+    ]);
+  }
+
   getStatsForStatement(userId: string, statementId: string) {
     return this.prisma.transaction.groupBy({
       by: ['type'],
