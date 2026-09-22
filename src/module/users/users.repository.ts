@@ -11,6 +11,10 @@ export type CreateUserInput = Pick<
 export class UsersRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  updateName(id: string, name: string) {
+    return this.prisma.user.update({ where: { id }, data: { name } });
+  }
+
   markEmailVerified(userId: string) {
     return this.prisma.user.update({
       where: { id: userId },
