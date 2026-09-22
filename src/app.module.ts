@@ -22,6 +22,7 @@ import { StatementsModule } from './module/statements/statements.module';
 import { GeminiModule } from './module/gemini/gemini.module';
 import { TransactionsModule } from './module/transactions/transactions.module';
 import { DashboardModule } from './module/dashboard/dashboard.module';
+import { BudgetsModule } from './module/budget/budgets.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { DashboardModule } from './module/dashboard/dashboard.module';
     GeminiModule,
     TransactionsModule,
     DashboardModule,
+    BudgetsModule,
   ],
   controllers: [AppController],
   providers: [
