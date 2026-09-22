@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { StatementsRepository } from './statements.repository';
 import { InjectQueue } from '@nestjs/bullmq';
 import * as crypto from 'crypto';
@@ -9,13 +13,42 @@ import {
 } from './statements.constants';
 import { Queue } from 'bullmq';
 import { StatementStatus } from '../../generated/prisma/enums';
+import { TransactionsService } from '../transactions/transactions.service';
 
 @Injectable()
 export class StatementsService {
   constructor(
+    private readonly transactionsService: TransactionsService,
     private readonly statementsRepository: StatementsRepository,
     @InjectQueue(PROCESS_STATEMENT_QUEUE) private readonly queue: Queue,
   ) {}
+
+  async getStats(id: string, userId: string) {
+    const statement = await this.statementsRepository.findByIdForUser(
+      id,
+      userId,
+    );
+    if (!statement)
+      throw new NotFoundException(STATEMENTS_MESSAGES.STATEMENT_NOT_FOUND);
+    return this.transactionsService.getStats(userId, id);
+  }
+
+  async getTransactions(
+    id: string,
+    userId: string,
+    pagination: { page: number; limit: number },
+  ) {
+    const statement = await this.statementsRepository.findByIdForUser(
+      id,
+      userId,
+    );
+    if (!statement)
+      throw new NotFoundException(STATEMENTS_MESSAGES.STATEMENT_NOT_FOUND);
+    return this.transactionsService.findAll(userId, {
+      ...pagination,
+      statementId: id,
+    });
+  }
 
   async findAll(
     userId: string,

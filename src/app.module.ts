@@ -21,6 +21,7 @@ import { EmailVerificationTokensModule } from './module/email-verification-token
 import { StatementsModule } from './module/statements/statements.module';
 import { GeminiModule } from './module/gemini/gemini.module';
 import { TransactionsModule } from './module/transactions/transactions.module';
+import { DashboardModule } from './module/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { TransactionsModule } from './module/transactions/transactions.module';
     StatementsModule,
     GeminiModule,
     TransactionsModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [

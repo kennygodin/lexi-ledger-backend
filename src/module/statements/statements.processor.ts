@@ -1,5 +1,5 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
-import { Job } from 'bullmq';
+import { Job, UnrecoverableError } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
@@ -49,44 +49,56 @@ export class StatementsProcessor extends WorkerHost {
       throw new Error(STATEMENTS_MESSAGES.NO_EXTRACTABLE_TEXT);
     }
 
-    const rawResults = await this.geminiService.extractTransactions(text);
+    try {
+      const rawResults = await this.geminiService.extractTransactions(text);
 
-    const validated: ExtractedTransactionDto[] = [];
-    for (const raw of rawResults) {
-      const instance = plainToInstance(ExtractedTransactionDto, raw);
-      const errors = await validate(instance);
-      if (errors.length > 0) {
-        throw new Error(
-          `${STATEMENTS_MESSAGES.INVALID_GEMINI_TRANSACTION}: ${JSON.stringify(errors)}`,
-        );
+      const validated: ExtractedTransactionDto[] = [];
+      for (const raw of rawResults) {
+        const instance = plainToInstance(ExtractedTransactionDto, raw);
+        const errors = await validate(instance);
+        if (errors.length > 0) {
+          throw new Error(
+            `${STATEMENTS_MESSAGES.INVALID_GEMINI_TRANSACTION}: ${JSON.stringify(errors)}`,
+          );
+        }
+        validated.push(instance);
       }
-      validated.push(instance);
+
+      const transactionsData = validated.map((t) => ({
+        userId: statement.userId,
+        statementId: statement.id,
+        date: new Date(t.date),
+        description: t.description,
+        amount: toKobo(t.amount),
+        type: t.type,
+        category: t.category,
+        confidence: t.confidence,
+      }));
+
+      await this.transactionsService.createMany(transactionsData);
+      await this.statementsService.updateStatus(statementId, 'parsed');
+
+      this.logger.log(
+        `Finished processing ${statementId}: ${validated.length} transactions`,
+      );
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('per day')) {
+        throw new UnrecoverableError(error.message);
+      }
+      throw error;
     }
-
-    const transactionsData = validated.map((t) => ({
-      userId: statement.userId,
-      statementId: statement.id,
-      date: new Date(t.date),
-      description: t.description,
-      amount: toKobo(t.amount),
-      type: t.type,
-      category: t.category,
-      confidence: t.confidence,
-    }));
-
-    await this.transactionsService.createMany(transactionsData);
-    await this.statementsService.updateStatus(statementId, 'parsed');
-
-    this.logger.log(
-      `Finished processing ${statementId}: ${validated.length} transactions`,
-    );
   }
 
   @OnWorkerEvent('failed')
   async onFailed(job: Job<{ statementId: string }> | undefined, error: Error) {
     if (!job) return;
     const attemptsAllowed = job.opts.attempts ?? 1;
-    if (job.attemptsMade >= attemptsAllowed) {
+    const isUnrecoverable =
+      error instanceof UnrecoverableError ||
+      error.name === 'UnrecoverableError';
+    const isPermanent = isUnrecoverable || job.attemptsMade >= attemptsAllowed;
+
+    if (isPermanent) {
       const { statementId } = job.data;
       this.logger.error(
         `Permanently failed statement ${statementId} after ${job.attemptsMade} attempts: ${error.message}`,
