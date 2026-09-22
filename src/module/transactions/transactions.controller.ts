@@ -16,6 +16,7 @@ import {
   type CurrentUserPayload,
 } from '../../common/decorators/current-user.decorator';
 import { CorrectionDto } from './dto/correction.dto';
+import { FindTransactionsDto } from './dto/find-transactions.dto';
 
 @Controller('transactions')
 @UseGuards(JwtAuthGuard)
@@ -40,7 +41,7 @@ export class TransactionsController {
   @ApiOperation({ summary: 'Fetch all users transactions' })
   async listTransactions(
     @CurrentUser() user: CurrentUserPayload,
-    @Query() query: PaginationDto,
+    @Query() query: FindTransactionsDto,
   ) {
     return this.transactionsService.findAll(user.userId, query);
   }

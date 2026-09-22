@@ -50,6 +50,7 @@ model User {
   uploadStatements        UploadStatement[]
   transactions            Transaction[]
   corrections             TransactionCorrection[]
+  budgets                 Budget[]
 
   @@map("users")
 }
@@ -146,4 +147,16 @@ model TransactionCorrection {
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([transactionId])
+}
+
+model Budget {
+  id          String              @id @default(uuid())
+  userId      String
+  category    TransactionCategory
+  monthlyLimit Int
+  createdAt   DateTime            @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category])
 }
