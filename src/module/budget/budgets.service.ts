@@ -11,8 +11,10 @@ export class BudgetsService {
     private readonly transactionsService: TransactionsService,
   ) {}
 
-  async findAll(userId: string, { from, to }: { from?: string; to?: string }) {
-    const range = from || to ? { from, to } : this.getCurrentMonthRange();
+  async findAll(userId: string, { month }: { month?: string }) {
+    const range = month
+      ? this.getMonthRange(month)
+      : this.getCurrentMonthRange();
 
     const [budgets, overview] = await Promise.all([
       this.budgetsRepository.findAllForUser(userId),
@@ -42,12 +44,17 @@ export class BudgetsService {
     return this.budgetsRepository.delete(userId, category);
   }
 
+  private getMonthRange(month: string) {
+    const [year, m] = month.split('-').map(Number);
+    const from = new Date(Date.UTC(year, m - 1, 1));
+    const to = new Date(Date.UTC(year, m, 0, 23, 59, 59, 999));
+    return { from: from.toISOString(), to: to.toISOString() };
+  }
+
   private getCurrentMonthRange() {
     const now = new Date();
-    const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-    const to = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999),
+    return this.getMonthRange(
+      `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`,
     );
-    return { from: from.toISOString(), to: to.toISOString() };
   }
 }
