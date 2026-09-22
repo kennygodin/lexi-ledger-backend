@@ -20,6 +20,15 @@ export interface CreateTransactionInput {
 export class TransactionsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  getStatsForStatement(userId: string, statementId: string) {
+    return this.prisma.transaction.groupBy({
+      by: ['type'],
+      where: { userId, statementId },
+      _sum: { amount: true },
+      _count: true,
+    });
+  }
+
   async correct(
     userId: string,
     {
@@ -55,10 +64,13 @@ export class TransactionsRepository {
 
   async findAllForUser(
     userId: string,
-    { skip, take }: { skip: number; take: number },
+    {
+      skip,
+      take,
+      statementId,
+    }: { skip: number; take: number; statementId?: string },
   ) {
-    const where = { userId };
-
+    const where = { userId, ...(statementId ? { statementId } : {}) };
     const [transactions, total] = await this.prisma.$transaction([
       this.prisma.transaction.findMany({
         where,
@@ -68,7 +80,6 @@ export class TransactionsRepository {
       }),
       this.prisma.transaction.count({ where }),
     ]);
-
     return { transactions, total };
   }
 

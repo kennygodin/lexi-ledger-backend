@@ -12,6 +12,24 @@ export class TransactionsService {
     private readonly transactionsRepository: TransactionsRepository,
   ) {}
 
+  async getStats(userId: string, statementId: string) {
+    const grouped = await this.transactionsRepository.getStatsForStatement(
+      userId,
+      statementId,
+    );
+    const credit = grouped.find((g) => g.type === 'credit');
+    const debit = grouped.find((g) => g.type === 'debit');
+    const totalCredit = credit?._sum.amount ?? 0;
+    const totalDebit = debit?._sum.amount ?? 0;
+
+    return {
+      totalTransactions: (credit?._count ?? 0) + (debit?._count ?? 0),
+      totalCredit, // kobo
+      totalDebit, // kobo
+      net: totalCredit - totalDebit,
+    };
+  }
+
   async correct(
     userId: string,
     { id, category }: { id: string; category: TransactionCategory },
@@ -39,7 +57,11 @@ export class TransactionsService {
 
   async findAll(
     userId: string,
-    { page, limit }: { page: number; limit: number },
+    {
+      page,
+      limit,
+      statementId,
+    }: { page: number; limit: number; statementId?: string },
   ) {
     const skip = (page - 1) * limit;
 
@@ -47,6 +69,7 @@ export class TransactionsService {
       await this.transactionsRepository.findAllForUser(userId, {
         skip,
         take: limit,
+        statementId,
       });
     return {
       data: transactions,

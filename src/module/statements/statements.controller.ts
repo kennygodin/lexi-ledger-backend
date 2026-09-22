@@ -35,6 +35,23 @@ import { PaginationDto } from '../../common/dto/pagination.dto';
 export class StatementsController {
   constructor(private readonly statementsService: StatementsService) {}
 
+  @Get(':id/transactions')
+  getStatementTransactions(
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserPayload,
+    @Query() query: PaginationDto,
+  ) {
+    return this.statementsService.getTransactions(id, user.userId, query);
+  }
+
+  @Get(':id/stats')
+  getStatementStats(
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.statementsService.getStats(id, user.userId);
+  }
+
   @Get('')
   @ApiOperation({ summary: 'Fetch all uploaded statements' })
   async listStatements(
