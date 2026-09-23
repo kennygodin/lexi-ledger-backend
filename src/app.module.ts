@@ -17,8 +17,9 @@ import appConfig from './config/app.config';
 import jwtConfig from './config/jwt.config';
 import redisConfig from './config/redis.config';
 import geminiConfig from './config/gemini.config';
-import storageConfig from './config/storage.config';
 import throttlerConfig from './config/throttler.config';
+import storageConfig from './config/storage.config';
+import mailConfig from './config/mail.config';
 import { envValidationSchema } from './config/env.validation';
 import { PasswordResetTokensModule } from './module/password-reset-tokens/password-reset-tokens.module';
 import { MailModule } from './module/mail/mail.module';
@@ -28,6 +29,15 @@ import { GeminiModule } from './module/gemini/gemini.module';
 import { TransactionsModule } from './module/transactions/transactions.module';
 import { DashboardModule } from './module/dashboard/dashboard.module';
 import { BudgetsModule } from './module/budget/budgets.module';
+
+function redisConnectionOptions(config: ConfigService) {
+  return {
+    host: config.get<string>('redis.host'),
+    port: config.get<number>('redis.port'),
+    password: config.get<string>('redis.password'),
+    ...(config.get<boolean>('redis.tls') ? { tls: {} } : {}),
+  };
+}
 
 @Module({
   imports: [
@@ -42,6 +52,7 @@ import { BudgetsModule } from './module/budget/budgets.module';
         geminiConfig,
         throttlerConfig,
         storageConfig,
+        mailConfig,
       ],
       validationSchema: envValidationSchema,
     }),
@@ -49,10 +60,7 @@ import { BudgetsModule } from './module/budget/budgets.module';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        connection: {
-          host: config.get<string>('redis.host'),
-          port: config.get<number>('redis.port'),
-        },
+        connection: redisConnectionOptions(config),
       }),
     }),
 
@@ -67,10 +75,7 @@ import { BudgetsModule } from './module/budget/budgets.module';
           },
         ],
         storage: new ThrottlerStorageRedisService(
-          new Redis({
-            host: config.get<string>('redis.host'),
-            port: config.get<number>('redis.port'),
-          }),
+          new Redis(redisConnectionOptions(config)),
         ),
       }),
     }),

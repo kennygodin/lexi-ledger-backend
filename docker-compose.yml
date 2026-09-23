@@ -19,6 +19,22 @@ services:
     volumes:
       - redis_data:/data
 
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://LEXI_LEDGER_USER:LEXI_LEDGER_PASS@postgres:5432/lexi_ledger?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_TLS: "false"
+      REDIS_PASSWORD: ""
+    depends_on:
+      - postgres
+      - redis
+
 volumes:
   postgres_data:
   redis_data:

@@ -16,4 +16,8 @@ export const envValidationSchema = Joi.object({
   R2_ACCESS_KEY_ID: Joi.string().required(),
   R2_SECRET_ACCESS_KEY: Joi.string().required(),
   R2_BUCKET: Joi.string().required(),
+  RESEND_API_KEY: Joi.string().required(),
+  MAIL_FROM: Joi.string().email().required(),
+  REDIS_PASSWORD: Joi.string().allow('').optional(),
+  REDIS_TLS: Joi.string().valid('true', 'false').default('false'),
 });
