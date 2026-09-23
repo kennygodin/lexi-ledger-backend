@@ -8,6 +8,7 @@ import { PassportModule } from '@nestjs/passport';
 import { StatementsProcessor } from './statements.processor';
 import { GeminiModule } from '../gemini/gemini.module';
 import { TransactionsModule } from '../transactions/transactions.module';
+import { StorageModule } from '../../storage/storage.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { TransactionsModule } from '../transactions/transactions.module';
     BullModule.registerQueue({ name: PROCESS_STATEMENT_QUEUE }),
     GeminiModule,
     TransactionsModule,
+    StorageModule,
   ],
   providers: [StatementsService, StatementsRepository, StatementsProcessor],
   controllers: [StatementsController],

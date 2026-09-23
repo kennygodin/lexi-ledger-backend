@@ -4,7 +4,6 @@ import { Logger } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { PDFParse } from 'pdf-parse';
-import * as fs from 'fs';
 import {
   PROCESS_STATEMENT_QUEUE,
   STATEMENTS_MESSAGES,
@@ -14,6 +13,7 @@ import { ExtractedTransactionDto } from './dto/extracted-transaction.dto';
 import { toKobo } from '../../common/utils/money.util';
 import { StatementsService } from './statements.service';
 import { TransactionsService } from '../transactions/transactions.service';
+import { StorageService } from '../../storage/storage.service';
 
 @Processor(PROCESS_STATEMENT_QUEUE)
 export class StatementsProcessor extends WorkerHost {
@@ -23,6 +23,7 @@ export class StatementsProcessor extends WorkerHost {
     private readonly statementsService: StatementsService,
     private readonly geminiService: GeminiService,
     private readonly transactionsService: TransactionsService,
+    private readonly storageService: StorageService,
   ) {
     super();
   }
@@ -40,7 +41,9 @@ export class StatementsProcessor extends WorkerHost {
       throw new Error(STATEMENTS_MESSAGES.STATEMENT_NOT_FOUND);
     }
 
-    const fileBuffer = await fs.promises.readFile(statement.storagePath);
+    const fileBuffer = await this.storageService.download(
+      statement.storagePath,
+    );
     const parser = new PDFParse({ data: fileBuffer });
     const { text } = await parser.getText();
     await parser.destroy();

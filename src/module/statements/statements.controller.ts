@@ -26,7 +26,7 @@ import {
 } from '../../common/decorators/current-user.decorator';
 import { randomUUID } from 'crypto';
 import { extname } from 'path';
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 
 @Controller('statements')
@@ -79,16 +79,7 @@ export class StatementsController {
       },
     },
   })
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads',
-        filename: (_req, file, callback) => {
-          callback(null, `${randomUUID()}${extname(file.originalname)}`);
-        },
-      }),
-    }),
-  )
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
   upload(
     @UploadedFile(
       new ParseFilePipe({

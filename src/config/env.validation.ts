@@ -12,4 +12,8 @@ export const envValidationSchema = Joi.object({
   GEMINI_API_KEY: Joi.string().required(),
   THROTTLE_TTL_MS: Joi.number().default(60000),
   THROTTLE_LIMIT: Joi.number().default(100),
+  R2_ACCOUNT_ID: Joi.string().required(),
+  R2_ACCESS_KEY_ID: Joi.string().required(),
+  R2_SECRET_ACCESS_KEY: Joi.string().required(),
+  R2_BUCKET: Joi.string().required(),
 });
