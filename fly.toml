@@ -4,7 +4,7 @@
 #
 
 app = 'lexi-ledger-backend-still-meadowbrook-7783'
-primary_region = 'ams'
+primary_region = 'iad'
 
 [build]
   dockerfile = './Dockerfile'
