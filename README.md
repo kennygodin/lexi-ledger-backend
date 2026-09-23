@@ -1,114 +1,97 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# LexiLedger
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+An AI-powered expense tracker. Upload a bank statement PDF, and Gemini extracts and categorizes every transaction automatically — no manual entry. Track spending against category budgets, correct AI miscategorizations with a full audit trail, and see your finances on a dashboard.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Built as a hands-on rebuild of patterns from a prior production fintech backend: rotating refresh tokens, queue-backed async processing, database-enforced idempotency, and an honest (append-only) audit trail — applied from day one rather than bolted on later.
 
-## Description
+## What it does
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+1. **Upload** a bank statement PDF.
+2. A background worker (BullMQ) picks it up, extracts the text, and sends it to **Gemini** with a structured-output schema.
+3. Each transaction comes back typed, categorized, and validated — then persisted.
+4. View everything on a **dashboard** (totals, category breakdown), set **per-category monthly budgets** and track spend against them, and **correct** any category the AI got wrong (with a full history of what changed and when).
 
-## Project setup
+## Features
 
-```bash
-$ bun install
-```
+- **Auth** — register/login/refresh with rotating refresh tokens and reuse-detection (a reused, already-rotated refresh token is treated as a theft signal, not just an error), email verification, forgot/reset password, logout-all-sessions, Redis-backed rate limiting on all five auth-abuse-prone endpoints.
+- **Statement upload & parsing** — PDF upload → object storage (Cloudflare R2) → BullMQ queue → text extraction → Gemini structured extraction → validated, persisted transactions. Idempotent by content hash (re-uploading the same file returns the existing statement, no duplicate processing). Gemini failures distinguish transient (per-minute rate limit, worth retrying) from unrecoverable (daily quota exhausted, fails fast instead of burning more of a scarce quota).
+- **Transactions** — paginated listing with date-range and per-statement filtering, category correction with an append-only audit trail (`TransactionCorrection`), per-transaction correction history.
+- **Dashboard** — income/expense totals and category breakdown over any date range (or all-time).
+- **Budgets** — per-category recurring monthly limits, with spend-vs-limit comparison scoped to a single calendar month (`?month=YYYY-MM`) — deliberately not an arbitrary date range, since comparing a "monthly" limit against a multi-month window would be meaningless.
+- **Statement drill-down** — per-statement transaction list and stats (total/credit/debit/net).
+- **Email** — verification and password-reset codes (6-digit, not links — the API needs to support non-web clients too) sent via Resend.
+- **File storage** — statement PDFs live in Cloudflare R2 (S3-compatible), not local disk, so the app is actually deployable (local disk doesn't survive most hosting platforms' restarts/redeploys).
 
-## Compile and run the project
+## Tech stack
 
-```bash
-# development
-$ bun run start
+| Layer | Choice |
+|---|---|
+| Framework | NestJS + TypeScript |
+| Database | PostgreSQL + Prisma (7.x, `pg` driver adapter) |
+| Queue | Redis + BullMQ (statement processing) |
+| AI extraction | Gemini (structured JSON output) |
+| Auth | JWT access tokens + rotating refresh tokens |
+| File storage | Cloudflare R2 (S3-compatible API via `@aws-sdk/client-s3`) |
+| Email | Resend |
+| Rate limiting | `@nestjs/throttler`, Redis-backed |
+| Validation | class-validator / class-transformer |
+| Docs | Swagger (`/api/docs`) |
 
-# watch mode
-$ bun run start:dev
+## Architecture notes
 
-# production mode
-$ bun run start:prod
-```
+- **Repository/service split** — every feature module (`src/module/*`) separates Prisma calls (repository) from business logic (service); controllers stay thin. Cross-cutting infra (guards, decorators, interceptors, filters) lives in `src/common/`; infra with no HTTP surface of its own (Prisma, object storage) lives at `src/*` top-level, not under `src/module/`.
+- **Response envelope** — a global interceptor wraps every response as `{ success, statusCode, data, meta? }`; a global exception filter normalizes every error as `{ success: false, statusCode, timestamp, path, message }`.
+- **Idempotency** — statement uploads are deduplicated by SHA-256 content hash per user; re-uploading an identical file returns the existing record instead of reprocessing.
+- **Audit trail, not silent overwrite** — correcting a transaction's category writes an append-only `TransactionCorrection` row (previous value, new value, timestamp) atomically alongside the update, rather than just overwriting the field.
+- **Money as integers** — all amounts are stored in kobo (lowest currency unit), never floats, to avoid rounding drift; conversion to a display currency happens at the edges.
 
-## Run tests
+## Getting started
 
-```bash
-# unit tests
-$ bun run test
-
-# e2e tests
-$ bun run test:e2e
-
-# test coverage
-$ bun run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+**Prerequisites:** Node.js, Bun, Docker.
 
 ```bash
-$ bun install -g @nestjs/mau
-$ mau deploy
+# 1. Install dependencies
+bun install
+
+# 2. Start Postgres + Redis
+docker compose up -d
+
+# 3. Copy the example env file and fill in the blanks
+cp .env.example .env
+
+# 4. Run migrations and generate the Prisma client
+bunx prisma migrate dev --name init
+bunx prisma generate
+
+# 5. Start the dev server
+bun run start:dev
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+API docs (Swagger) are then available at `http://localhost:3000/api/docs`.
 
-## Observability
+## Environment variables
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
+| Variable | Required | Notes |
+|---|---|---|
+| `DATABASE_URL` | Yes | Postgres connection string |
+| `JWT_ACCESS_SECRET` | Yes | `openssl rand -hex 32` |
+| `JWT_ACCESS_EXPIRES_IN` | No | Default `15m` |
+| `PORT` | No | Default `3000` |
+| `NODE_ENV` | No | Default `development` |
+| `CORS_ORIGINS` | No | Comma-separated, default allows `localhost:5173` |
+| `REDIS_HOST` / `REDIS_PORT` | Yes | Matches `docker-compose.yml` |
+| `GEMINI_API_KEY` | Yes | For statement extraction |
+| `THROTTLE_TTL_MS` / `THROTTLE_LIMIT` | No | Global rate-limit default, defaults 60s / 100 req |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | Yes | Cloudflare R2 credentials |
+| `RESEND_API_KEY` | Yes | Email sending |
+| `MAIL_FROM` | Yes | Must be on a domain verified with Resend |
 
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
+## Roadmap
 
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
+Shipped: auth, statement upload/parsing, AI categorization, transactions + correction history, dashboard, budgets, rate limiting, R2 storage, real email delivery.
 
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observer](https://observer.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Deliberately deferred (v2+): parsing robustness across more statement formats, multi-account support, recurring-transaction detection, anomaly detection, a correction feedback loop back into categorization, data export, month-over-month comparison.
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+UNLICENSED — personal/portfolio project.
