@@ -6,7 +6,7 @@ import {
 import { StatementsRepository } from './statements.repository';
 import { InjectQueue } from '@nestjs/bullmq';
 import * as crypto from 'crypto';
-import * as fs from 'fs';
+import { extname } from 'path';
 import {
   PROCESS_STATEMENT_QUEUE,
   STATEMENTS_MESSAGES,
@@ -14,12 +14,14 @@ import {
 import { Queue } from 'bullmq';
 import { StatementStatus } from '../../generated/prisma/enums';
 import { TransactionsService } from '../transactions/transactions.service';
+import { StorageService } from '../../storage/storage.service';
 
 @Injectable()
 export class StatementsService {
   constructor(
     private readonly transactionsService: TransactionsService,
     private readonly statementsRepository: StatementsRepository,
+    private readonly storageService: StorageService,
     @InjectQueue(PROCESS_STATEMENT_QUEUE) private readonly queue: Queue,
   ) {}
 
@@ -91,25 +93,27 @@ export class StatementsService {
       throw new BadRequestException(STATEMENTS_MESSAGES.ONLY_PDF);
     }
 
-    const fileBuffer = await fs.promises.readFile(file.path);
     const contentHash = crypto
       .createHash('sha256')
-      .update(fileBuffer)
+      .update(file.buffer)
       .digest('hex');
 
     const existing = await this.statementsRepository.findByUserAndHash(
       userId,
       contentHash,
     );
-    if (existing) {
-      return existing;
-    }
+    if (existing) return existing;
+
+    const storageKey = await this.storageService.upload(
+      file.buffer,
+      extname(file.originalname),
+    );
 
     const statement = await this.statementsRepository.create({
       contentHash,
       filename: file.originalname,
       userId,
-      storagePath: file.path,
+      storagePath: storageKey,
     });
 
     await this.queue.add(
@@ -117,7 +121,6 @@ export class StatementsService {
       { statementId: statement.id },
       { attempts: 3, backoff: { type: 'exponential', delay: 2000 } },
     );
-
     return statement;
   }
 }

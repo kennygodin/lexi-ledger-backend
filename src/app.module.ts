@@ -17,6 +17,7 @@ import appConfig from './config/app.config';
 import jwtConfig from './config/jwt.config';
 import redisConfig from './config/redis.config';
 import geminiConfig from './config/gemini.config';
+import storageConfig from './config/storage.config';
 import throttlerConfig from './config/throttler.config';
 import { envValidationSchema } from './config/env.validation';
 import { PasswordResetTokensModule } from './module/password-reset-tokens/password-reset-tokens.module';
@@ -34,7 +35,14 @@ import { BudgetsModule } from './module/budget/budgets.module';
 
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, jwtConfig, redisConfig, geminiConfig, throttlerConfig],
+      load: [
+        appConfig,
+        jwtConfig,
+        redisConfig,
+        geminiConfig,
+        throttlerConfig,
+        storageConfig,
+      ],
       validationSchema: envValidationSchema,
     }),
     BullModule.forRootAsync({
