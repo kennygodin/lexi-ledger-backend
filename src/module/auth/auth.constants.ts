@@ -11,7 +11,7 @@ export const AUTH_MESSAGES = {
   LOGOUT_SUCCESS: 'Logout successful',
   LOGOUT_ALL_SUCCESS: 'Logout all successful',
   INVALID_RESET_TOKEN: 'Invalid reset token',
-  FORGOT_PASSWORD_GENERIC: 'If that email exists, we sent a reset link',
+  FORGOT_PASSWORD_GENERIC: 'If that email exists, we sent a reset code',
   RESET_SUCCESSFUL: 'Password reset successful',
   VERIFICATION_EMAIL_SENT_GENERIC: 'Verification email sent',
   INVALID_VERIFICATION_TOKEN: 'Invalid verification token',
