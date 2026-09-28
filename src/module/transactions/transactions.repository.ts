@@ -125,7 +125,7 @@ export class TransactionsRepository {
     const [transactions, total] = await this.prisma.$transaction([
       this.prisma.transaction.findMany({
         where,
-        orderBy: { date: 'desc' },
+        orderBy: [{ date: 'desc' }, { id: 'desc' }],
         skip,
         take,
       }),
