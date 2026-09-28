@@ -119,7 +119,7 @@ export class StatementsService {
     await this.queue.add(
       PROCESS_STATEMENT_QUEUE,
       { statementId: statement.id },
-      { attempts: 3, backoff: { type: 'exponential', delay: 2000 } },
+      { attempts: 3, backoff: { type: 'exponential', delay: 20000 } },
     );
     return statement;
   }
