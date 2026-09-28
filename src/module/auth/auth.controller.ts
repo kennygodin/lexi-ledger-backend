@@ -49,10 +49,11 @@ export class AuthController {
     refreshToken: string,
     expiresAt: Date,
   ) {
+    const isProduction = this.configService.get('app.nodeEnv') === 'production';
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: this.configService.get('app.nodeEnv') === 'production',
-      sameSite: 'strict',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'strict',
       expires: expiresAt,
     });
   }
