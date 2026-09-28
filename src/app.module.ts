@@ -31,10 +31,12 @@ import { DashboardModule } from './module/dashboard/dashboard.module';
 import { BudgetsModule } from './module/budget/budgets.module';
 
 function redisConnectionOptions(config: ConfigService) {
+  const host = config.get<string>('redis.host');
   return {
-    host: config.get<string>('redis.host'),
+    host,
     port: config.get<number>('redis.port'),
     password: config.get<string>('redis.password'),
+    ...(host?.endsWith('.internal') ? { family: 6 } : {}),
     ...(config.get<boolean>('redis.tls') ? { tls: {} } : {}),
   };
 }
